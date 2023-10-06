@@ -2,9 +2,10 @@
 
 #define ERREUR -1
 
+
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
-const float VITESSE_MOTEURS = 0.2;
+const float VITESSE_AVANCER = 0.2;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.475; // En mètre
 
@@ -32,6 +33,7 @@ void arret();
 void tourne(int dir);
 void beep(int count, int ms = 75);
 void reinitialiser_encodeurs();
+int ENCODER_Read_Ajuste(int id);
 
 void setup() {
   BoardInit();
@@ -44,9 +46,20 @@ void loop() {
   int matrice[NB_COLONNES][NB_LIGNES] = {0};
 
   while (true) {
-    tourne(RIGHT);
-    tourne(LEFT);
+    avanceDistance(1);
+    delay(1000);
   }
+
+  // MOTOR_SetSpeed(LEFT, 0.25);
+  // MOTOR_SetSpeed(RIGHT, 0.25);
+  // while (true) {
+  //   Serial.print("GAUCHE: ");
+  //   Serial.print(ENCODER_ReadReset(LEFT));
+  //   Serial.print(", DROITE: ");
+  //   Serial.print(ENCODER_ReadReset(RIGHT));
+  //   Serial.print("\n");
+  //   delay(500);
+  // }
 
   // while (true) sifflet();
 
@@ -142,38 +155,65 @@ bool arrive(int ligne) {
 // Avance d'une certaine distance en mètres
 void avanceDistance(float distance)
 {
-  //Converti la distance en mètre au nb de pulse nécéssaire
-  int nbPulseVoulu = PULSES_PAR_TOUR * (distance / CIRCONFERENCE_ROUE_M);
-  
-  //initialise la vitesse des moteurs
-  float vitesseG = VITESSE_MOTEURS;
-  float vitesseD = VITESSE_MOTEURS;
+  // Converti la distance en mètre au nb de pulse nécéssaire
+  const int PULSES_A_PARCOURIR = PULSES_PAR_TOUR * (distance / CIRCONFERENCE_ROUE_M);
+  const int PPM_VOULU_MIN = 20;       // Distance min a parcourir par mesure pour correction
+  const float PPM_TAUX_AJUSTEMENT_DISTANCE = 4.0; // Taux d'ajustement pour egaliser la difference de distance parcourue entre les deux roues
+                                                  // Plus le nombre est grand, plus l'ajustement est moindre
 
-  int encodeurG = 0;
+  float vitesseG = VITESSE_AVANCER;   // La vitesse de base des moteurs
+  float vitesseD = VITESSE_AVANCER;
+  int encodeurG = 0;                  // Lit le nombre de pulses des encodeurs
   int encodeurD = 0;
-  int sumG = 0;
-  int sumD = 0;
-  int PPMvoulu = 0; // Pulse per measure
+  int pulsesParcourusG = 0;           // Nombre total de pulses emits par les roues depuis le debut du mouvement
+  int pulsesParcourusD = 0;
+  int PPMvoulu = 0;                   // Pulses par mesure qu'on veut que les deux roues parcours (moyenne des 2 roues)
+  int PPMdiff = 0;                    // Difference entre les distances parcourues des deux roues
+  float correctionG = 1;              // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
+  float correctionD = 1;
 
-  //Tant que le nombre de pulse néccéssaire pour faire la distance désiré est plus petit que le compteur des encoders
-  while(sumG < nbPulseVoulu || sumD < nbPulseVoulu)
+  // Tant que le nombre de pulse néccéssaire pour faire la distance desire est plus petit que le compteur des encoders
+  while(pulsesParcourusG < PULSES_A_PARCOURIR || pulsesParcourusD < PULSES_A_PARCOURIR)
   {
     reinitialiser_encodeurs();
 
-    MOTOR_SetSpeed(0, vitesseG);
-    MOTOR_SetSpeed(1, vitesseD);
+    MOTOR_SetSpeed(0, vitesseG * correctionG);
+    MOTOR_SetSpeed(1, vitesseD * correctionD);
     delay(INTERVALLE_PRISE_MESURE);
 
-    sumG += encodeurG = ENCODER_Read(LEFT);   //update du nb de pulse
-    sumD += encodeurD = ENCODER_Read(RIGHT);
+    pulsesParcourusG += encodeurG = ENCODER_Read_Ajuste(LEFT);   // Update du nb de pulse
+    pulsesParcourusD += encodeurD = ENCODER_Read_Ajuste(RIGHT);
 
     PPMvoulu = (encodeurG + encodeurD) / 2;
+    PPMdiff = (pulsesParcourusG - pulsesParcourusD) / PPM_TAUX_AJUSTEMENT_DISTANCE;
 
-    //Ajuste la vitesse de chaque roue individuellement en fonction de la différence
-    if (encodeurG > 0 && encodeurD > 0) {
-      vitesseG = (PPMvoulu * vitesseG) / encodeurG;
-      vitesseD = (PPMvoulu * vitesseD) / encodeurD;
+    // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
+    if (encodeurG > 0 && encodeurD > 0 && PPMvoulu > PPM_VOULU_MIN) {
+      correctionG = (float)PPMvoulu / (encodeurG + PPMdiff);
+      correctionD = (float)PPMvoulu / (encodeurD - PPMdiff);
     }
+
+    Serial.print("\nSum G: ");
+    Serial.print(pulsesParcourusG);
+    Serial.print("\nSum D: ");
+    Serial.print(pulsesParcourusD);
+    Serial.print("\nEncodeur G: ");
+    Serial.print(encodeurG);
+    Serial.print("\nEncodeur D: ");
+    Serial.print(encodeurD);
+    Serial.print("\nPPMvoulu: ");
+    Serial.print(PPMvoulu);
+    Serial.print("\nPPMdiff: ");
+    Serial.print(PPMdiff);
+    Serial.print("\nCorrection G: ");
+    Serial.print(correctionG);
+    Serial.print("\nCorrection D: ");
+    Serial.print(correctionD);
+    Serial.print("\nEx Correction G: ");
+    Serial.print((float)PPMvoulu / (encodeurG));
+    Serial.print("\nEx Correction D: ");
+    Serial.print((float)PPMvoulu / (encodeurD));
+    Serial.print("\n--------------------");
   }
 
   arret();
@@ -273,10 +313,33 @@ void beep(int count, int ms){
     AX_BuzzerOFF();
     delay(ms);  
   }
-  delay(400);
 }
 
 void reinitialiser_encodeurs() {
   ENCODER_ReadReset(LEFT);
   ENCODER_ReadReset(RIGHT);
+}
+
+int ENCODER_Read_Ajuste(int id) {
+  // Meme avec l'ajustement avec pulse la roue de gauche roule plus lentement
+  // Ceci est un ajustement hardcode qui simule un retard d'avancement de la roue gauche
+  // pour que le systeme d'ajustement la fasse avancer plus rapidement
+  const int ADJUST_THRESHOLD_LEFT = 500;
+  static int s_totalLeft = 0;
+
+  if (id == LEFT) {
+    int read = ENCODER_Read(LEFT);
+    s_totalLeft += read;
+
+    if (s_totalLeft > ADJUST_THRESHOLD_LEFT) {
+      read -= floor(s_totalLeft / ADJUST_THRESHOLD_LEFT);
+      s_totalLeft %= ADJUST_THRESHOLD_LEFT;
+    }
+    return read;
+  }
+  else if (id == RIGHT) {
+    return ENCODER_Read(RIGHT);
+  }
+
+  return -1;
 }
