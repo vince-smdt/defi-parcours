@@ -5,7 +5,8 @@
 
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
-const float VITESSE_AVANCER = 0.2;
+const float VITESSE_AVANCER_MIN = 0.1;
+const float VITESSE_AVANCER_MAX = 0.4;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.475; // En mètre
 
@@ -46,8 +47,8 @@ void loop() {
   int matrice[NB_COLONNES][NB_LIGNES] = {0};
 
   while (true) {
-    avanceDistance(1);
-    delay(1000);
+    avanceDistance(TAILLE_CELLULE);
+    delay(500);
   }
 
   // MOTOR_SetSpeed(LEFT, 0.25);
@@ -161,8 +162,8 @@ void avanceDistance(float distance)
   const float PPM_TAUX_AJUSTEMENT_DISTANCE = 4.0; // Taux d'ajustement pour egaliser la difference de distance parcourue entre les deux roues
                                                   // Plus le nombre est grand, plus l'ajustement est moindre
 
-  float vitesseG = VITESSE_AVANCER;   // La vitesse de base des moteurs
-  float vitesseD = VITESSE_AVANCER;
+  float vitesseG = VITESSE_AVANCER_MAX;   // La vitesse de base des moteurs
+  float vitesseD = VITESSE_AVANCER_MAX;
   int encodeurG = 0;                  // Lit le nombre de pulses des encodeurs
   int encodeurD = 0;
   int pulsesParcourusG = 0;           // Nombre total de pulses emits par les roues depuis le debut du mouvement
@@ -177,12 +178,15 @@ void avanceDistance(float distance)
   {
     reinitialiser_encodeurs();
 
+    int x = (pulsesParcourusG + pulsesParcourusD) / 2; // Distance parcourue jusqu'a present
+    vitesseG = vitesseD = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * sin((PI*x)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
+
     MOTOR_SetSpeed(0, vitesseG * correctionG);
     MOTOR_SetSpeed(1, vitesseD * correctionD);
     delay(INTERVALLE_PRISE_MESURE);
 
-    pulsesParcourusG += encodeurG = ENCODER_Read_Ajuste(LEFT);   // Update du nb de pulse
-    pulsesParcourusD += encodeurD = ENCODER_Read_Ajuste(RIGHT);
+    pulsesParcourusG += encodeurG = ENCODER_Read(LEFT);   // Update du nb de pulse
+    pulsesParcourusD += encodeurD = ENCODER_Read(RIGHT);
 
     PPMvoulu = (encodeurG + encodeurD) / 2;
     PPMdiff = (pulsesParcourusG - pulsesParcourusD) / PPM_TAUX_AJUSTEMENT_DISTANCE;
@@ -193,27 +197,27 @@ void avanceDistance(float distance)
       correctionD = (float)PPMvoulu / (encodeurD - PPMdiff);
     }
 
-    Serial.print("\nSum G: ");
-    Serial.print(pulsesParcourusG);
-    Serial.print("\nSum D: ");
-    Serial.print(pulsesParcourusD);
-    Serial.print("\nEncodeur G: ");
-    Serial.print(encodeurG);
-    Serial.print("\nEncodeur D: ");
-    Serial.print(encodeurD);
-    Serial.print("\nPPMvoulu: ");
-    Serial.print(PPMvoulu);
-    Serial.print("\nPPMdiff: ");
-    Serial.print(PPMdiff);
-    Serial.print("\nCorrection G: ");
-    Serial.print(correctionG);
-    Serial.print("\nCorrection D: ");
-    Serial.print(correctionD);
-    Serial.print("\nEx Correction G: ");
-    Serial.print((float)PPMvoulu / (encodeurG));
-    Serial.print("\nEx Correction D: ");
-    Serial.print((float)PPMvoulu / (encodeurD));
-    Serial.print("\n--------------------");
+    // Serial.print("\nSum G: ");
+    // Serial.print(pulsesParcourusG);
+    // Serial.print("\nSum D: ");
+    // Serial.print(pulsesParcourusD);
+    // Serial.print("\nEncodeur G: ");
+    // Serial.print(encodeurG);
+    // Serial.print("\nEncodeur D: ");
+    // Serial.print(encodeurD);
+    // Serial.print("\nPPMvoulu: ");
+    // Serial.print(PPMvoulu);
+    // Serial.print("\nPPMdiff: ");
+    // Serial.print(PPMdiff);
+    // Serial.print("\nCorrection G: ");
+    // Serial.print(correctionG);
+    // Serial.print("\nCorrection D: ");
+    // Serial.print(correctionD);
+    // Serial.print("\nEx Correction G: ");
+    // Serial.print((float)PPMvoulu / (encodeurG));
+    // Serial.print("\nEx Correction D: ");
+    // Serial.print((float)PPMvoulu / (encodeurD));
+    // Serial.print("\n--------------------");
   }
 
   arret();
@@ -324,7 +328,7 @@ int ENCODER_Read_Ajuste(int id) {
   // Meme avec l'ajustement avec pulse la roue de gauche roule plus lentement
   // Ceci est un ajustement hardcode qui simule un retard d'avancement de la roue gauche
   // pour que le systeme d'ajustement la fasse avancer plus rapidement
-  const int ADJUST_THRESHOLD_LEFT = 500;
+  const int ADJUST_THRESHOLD_LEFT = 250;
   static int s_totalLeft = 0;
 
   if (id == LEFT) {
