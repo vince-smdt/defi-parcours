@@ -24,7 +24,7 @@ const float CORRECTION_MAX = 1.1;
 
 // Dimensions du parcours
 const int NB_COLS = 3;
-const int NB_LIGNES = 10;
+const int NB_LIGNES = 6;
 
 // Pins du robot
 const int PIN_PROX_DROITE = 47; // Lumiere verte
@@ -33,13 +33,25 @@ const int PIN_MICRO = 0;
 
 
 /****************************************/
+/**** ENUMS ****/
+/****************************************/
+
+enum Direction {
+  NORD = 0,
+  EST = 1,
+  OUEST = 2,
+  SUD = 3,
+  AUCUNE_DIRECTION = 4
+};
+
+/****************************************/
 /**** VARIABLES GLOBALES ****/
 /****************************************/
 
 int g_ligne;                        // Position y du robot
 int g_colonne;                      // Position x du robot
-int g_dir;                          // Direction cardinale du robot (0 = Nord, 1 = Est, 2 = Ouest, 3 = Sud)
 int g_matrice[NB_COLS][NB_LIGNES];  // Matrice des cellules du parcours (0 = Case non exploree, 1 = Case exploree)
+Direction g_dir;                    // Direction cardinale du robot
 
 
 /****************************************/
@@ -73,15 +85,15 @@ void setup() {
 void loop() {
   g_ligne = NB_LIGNES - 1;
   g_colonne = 1;
-  g_dir = 0;
+  g_dir = NORD;
   g_matrice[NB_COLS][NB_LIGNES] = {0};
 
   // while (!sifflet()); // On attend le signal du sifflet
 
   while (!arrive())
     // On verifie chaque direction pour voir si on peut s'y deplacer
-    for (int dir=0; dir <= 4; dir++) {
-      if (dir == 4)
+    for (int dir = NORD; dir <= AUCUNE_DIRECTION; dir++) {
+      if (dir == AUCUNE_DIRECTION)
         erreur(5); // Erreur, aucune case valide, on quitte le programme
       if (verifierCase(dir)) {
         deplacerCellule(dir); // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
@@ -203,24 +215,31 @@ void tourne(int dir){
 // Fait tourner le robot jusqu'a ce qu'il fait face a la bonne direction
 void changerDirection(int dir) {
   while (g_dir != dir) {
-      tourne(RIGHT);
-      switch (g_dir) {
-        case 0: g_dir = 1; break; // Nord  -> Est
-        case 1: g_dir = 3; break; // Est   -> Sud
-        case 2: g_dir = 0; break; // Ouest -> Nord
-        case 3: g_dir = 2; break; // Sud   -> Ouest
-      }
+    tourne(RIGHT);
+    switch (g_dir) {
+      case NORD:  g_dir = EST; break;
+      case EST:   g_dir = SUD; break;
+      case OUEST: g_dir = NORD; break;
+      case SUD:   g_dir = OUEST; break;
+      default: erreur(7);
+    }
   }
 }
 
 // Deplace le robot vers la cellule devant celui-ci
 void deplacerCellule(int dir) {
-  avanceDistance(TAILLE_CELLULE);
+  const float DISTANCE_A_PARCOURIR = (dir == NORD || dir == SUD) && (g_ligne != 1 || dir != NORD)
+                                   ? TAILLE_CELLULE * 2
+                                   : TAILLE_CELLULE;
+
+  changerDirection(dir);
+  avanceDistance(DISTANCE_A_PARCOURIR);
   switch (g_dir) {
-    case 0: g_ligne--;    break;
-    case 1: g_colonne++;  break;
-    case 2: g_colonne--;  break;
-    case 3: g_ligne++;    break;
+    case NORD:  g_ligne--;    break;
+    case EST:   g_colonne++;  break;
+    case OUEST: g_colonne--;  break;
+    case SUD:   g_ligne++;    break;
+    default: erreur(8);
   }
   g_matrice[g_colonne][g_ligne] = 1; // Marque la nouvelle case comme exploree
 }
@@ -272,7 +291,7 @@ bool sifflet() {
 
 // Detecte si le robot est arrivee a la derniere rangee
 bool arrive() {
-  return g_ligne == NB_LIGNES - 1;
+  return g_ligne == 0;
 }
 
 // Verifie si la case dans la direction voulue existe et n'est pas exploree
@@ -281,11 +300,11 @@ bool verifierCase(int dir) {
 
   // On verifie d'abord que la cellule existe et qu'elle est non exploree
   switch (dir) {
-    case 0:   caseValide = g_ligne  != 0            && g_matrice[g_colonne][g_ligne-1] == 0;
-    case 1:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
-    case 2:   caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
-    case 3:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
-    default:  return false;
+    case NORD:  caseValide = g_ligne  != 0            && g_matrice[g_colonne][g_ligne-1] == 0;
+    case EST:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
+    case OUEST: caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
+    case SUD:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
+    default: return false;
   }
 
   if (caseValide) {
