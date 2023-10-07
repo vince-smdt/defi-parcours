@@ -46,6 +46,7 @@ int g_matrice[NB_COLS][NB_LIGNES];  // Matrice des cellules du parcours (0 = Cas
 /**** FONCTIONS (DECLARATIONS) ****/
 /****************************************/
 
+void prochaineCellule(int entryDir);
 void avanceDistance(float distance);
 void tourne(int dir);
 void changerDirection(int dir);
@@ -61,6 +62,8 @@ bool sifflet();
 bool arrive();
 bool verifierCase(int dir);
 
+int dirOpposee(int dir);
+
 
 /****************************************/
 /**** SETUP & LOOP ****/
@@ -70,7 +73,8 @@ void setup() {
   BoardInit();
 }
 
-void loop() {
+// Test recursif
+void loop2() {
   g_ligne = NB_LIGNES - 1;
   g_colonne = 1;
   g_dir = 0;
@@ -78,24 +82,35 @@ void loop() {
 
   // while (!sifflet()); // On attend le signal du sifflet
 
-  while (!arrive())
-    // On verifie chaque direction pour voir si on peut s'y deplacer
-    for (int dir=0; dir <= 4; dir++) {
-      if (dir == 4)
-        erreur(5); // Erreur, aucune case valide, on quitte le programme
-      if (verifierCase(dir)) {
-        deplacerCellule(dir); // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
-        break; // On recommence la verification a partir de la direction Nord (0)
-      }
-    }
+  // Fonction recursive qui va determiner le chemin a prendre et faire deplacer le robot
+  prochaineCellule(-1);
 
-  succes();
+  if (arrive())
+    succes();
+  else
+    erreur(5);
 }
 
 
 /****************************************/
 /**** FONCTIONS (DEFINITIONS) ****/
 /****************************************/
+
+// Cherche la prochaine cellule, appele recursivement
+// Prend en parametre la direction d'entree dans la cellule. Si -1, premiere fois que fonction appelee
+void prochaineCellule(int entryDir) {
+  for (int dir=0; dir <= 3 && !arrive(); dir++)
+    if (verifierCase(dir)) {
+      deplacerCellule(dir);
+      prochaineCellule(dir); // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
+    }
+
+  if (arrive())
+    return;
+
+  if (entryDir != -1)
+    deplacerCellule(dirOpposee(entryDir));
+}
 
 // Avance d'une certaine distance en metres
 void avanceDistance(float distance){
@@ -203,19 +218,24 @@ void tourne(int dir){
 // Fait tourner le robot jusqu'a ce qu'il fait face a la bonne direction
 void changerDirection(int dir) {
   while (g_dir != dir) {
-      tourne(RIGHT);
-      switch (g_dir) {
-        case 0: g_dir = 1; break; // Nord  -> Est
-        case 1: g_dir = 3; break; // Est   -> Sud
-        case 2: g_dir = 0; break; // Ouest -> Nord
-        case 3: g_dir = 2; break; // Sud   -> Ouest
-      }
+    tourne(RIGHT);
+    switch (g_dir) {
+      case 0: g_dir = 1; break; // Nord  -> Est
+      case 1: g_dir = 3; break; // Est   -> Sud
+      case 2: g_dir = 0; break; // Ouest -> Nord
+      case 3: g_dir = 2; break; // Sud   -> Ouest
+    }
   }
 }
 
 // Deplace le robot vers la cellule devant celui-ci
 void deplacerCellule(int dir) {
-  avanceDistance(TAILLE_CELLULE);
+  const float DISTANCE_A_PARCOURIR = (dir == 0 || dir == 3) && g_ligne > 1
+                                   ? TAILLE_CELLULE * 2
+                                   : TAILLE_CELLULE;
+
+  changerDirection(dir);
+  avanceDistance(DISTANCE_A_PARCOURIR);
   switch (g_dir) {
     case 0: g_ligne--;    break;
     case 1: g_colonne++;  break;
@@ -281,7 +301,7 @@ bool verifierCase(int dir) {
 
   // On verifie d'abord que la cellule existe et qu'elle est non exploree
   switch (dir) {
-    case 0:   caseValide = g_ligne  != 0            && g_matrice[g_colonne][g_ligne-1] == 0;
+    case 0:   caseValide = g_ligne != 0             && g_matrice[g_colonne][g_ligne-1] == 0;
     case 1:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
     case 2:   caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
     case 3:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
@@ -295,4 +315,15 @@ bool verifierCase(int dir) {
   }
 
   return caseValide;
+}
+
+// Retourne la direction opposee a celle mise en parametre
+int dirOpposee(int dir) {
+  switch (dir) {
+    case 0: return 3; // Nord  -> Sud
+    case 1: return 2; // Est   -> Ouest
+    case 2: return 1; // Ouest -> Est
+    case 3: return 0; // Sud   -> Nord
+    default: return -1; // Invalide
+  }
 }
