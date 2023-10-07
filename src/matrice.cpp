@@ -74,7 +74,7 @@ void setup() {
 }
 
 // Test recursif
-void loop2() {
+void loop() {
   g_ligne = NB_LIGNES - 1;
   g_colonne = 1;
   g_dir = 0;
