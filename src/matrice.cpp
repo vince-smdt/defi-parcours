@@ -44,6 +44,7 @@ enum Direction {
   AUCUNE_DIRECTION = 4
 };
 
+
 /****************************************/
 /**** VARIABLES GLOBALES ****/
 /****************************************/
@@ -175,9 +176,9 @@ void tourne(int dir){
   int roueQuiAvance = -1;
 
   switch (dir) {
-    case LEFT: roueQuiAvance = RIGHT; break;
+    case LEFT:  roueQuiAvance = RIGHT; break;
     case RIGHT: roueQuiAvance = LEFT; break;
-    default: erreur(6); // On quitte le programme, direction invalide
+    default:    erreur(6); // On quitte le programme, direction invalide
   }
 
   while(distA < PULSES_TOURNER_90_DEG || distR > -PULSES_TOURNER_90_DEG)
@@ -221,7 +222,7 @@ void changerDirection(int dir) {
       case EST:   g_dir = SUD; break;
       case OUEST: g_dir = NORD; break;
       case SUD:   g_dir = OUEST; break;
-      default: erreur(7);
+      default:    erreur(7); // On quitte le programme, direction invalide
     }
   }
 }
@@ -239,7 +240,7 @@ void deplacerCellule(int dir) {
     case EST:   g_colonne++;  break;
     case OUEST: g_colonne--;  break;
     case SUD:   g_ligne++;    break;
-    default: erreur(8);
+    default:    erreur(8); // On quitte le programme, direction invalide
   }
   g_matrice[g_colonne][g_ligne] = 1; // Marque la nouvelle case comme exploree
 }
@@ -300,11 +301,11 @@ bool verifierCase(int dir) {
 
   // On verifie d'abord que la cellule existe et qu'elle est non exploree
   switch (dir) {
-    case NORD:  caseValide = g_ligne  != 0            && g_matrice[g_colonne][g_ligne-1] == 0;
+    case NORD:  caseValide = g_ligne != 0             && g_matrice[g_colonne][g_ligne-1] == 0;
     case EST:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
     case OUEST: caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
     case SUD:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
-    default: return false;
+    default:    return false; // Direction invalide
   }
 
   if (caseValide) {
