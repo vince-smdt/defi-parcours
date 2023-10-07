@@ -5,14 +5,15 @@
 
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
-const float VITESSE_AVANCER_MIN = 0.1;
-const float VITESSE_AVANCER_MAX = 0.4;
+const float VITESSE_AVANCER_MIN = 0.05;
+const float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.475; // En mètre
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1920;
-const float VITESSE_TOURNER = 0.1;
+const float VITESSE_TOURNER_MIN = 0.05;
+const float VITESSE_TOURNER_MAX = 0.3;
 
 // Pour avancer et tourner
 const int INTERVALLE_PRISE_MESURE = 50; // En ms
@@ -47,8 +48,9 @@ void loop() {
   int matrice[NB_COLONNES][NB_LIGNES] = {0};
 
   while (true) {
-    avanceDistance(TAILLE_CELLULE);
-    delay(500);
+    // avanceDistance(TAILLE_CELLULE);
+    tourne(RIGHT);
+    tourne(LEFT);
   }
 
   // MOTOR_SetSpeed(LEFT, 0.25);
@@ -233,13 +235,19 @@ void arret(){
 
 // Fait tourner le robot
 void tourne(int dir){
+  const int PPM_VOULU_MIN = 20;       // Distance min a parcourir par mesure pour correction
+  const float PPM_TAUX_AJUSTEMENT_DISTANCE = 3.5; // Taux d'ajustement pour egaliser la difference de distance parcourue entre les deux roues
+                                                  // Plus le nombre est grand, plus l'ajustement est moindre
   int encodeurA = 0; // Avance
   int encodeurR = 0; // Recule
   int sumA = 0;
   int sumR = 0;
-  float vitesseA = VITESSE_TOURNER;
-  float vitesseR = -VITESSE_TOURNER;
+  float vitesseA = 0;
+  float vitesseR = 0;
+  float correctionA = 1;              // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
+  float correctionR = 1;
 
+  int PPMdiff = 0;  // Difference entre les distances parcourues des deux roues
   int PPMvoulu = 0; // Pulse per measure
   int roueQuiAvance = ERREUR;
 
@@ -256,21 +264,52 @@ void tourne(int dir){
   {
     reinitialiser_encodeurs();
 
-    MOTOR_SetSpeed(roueQuiAvance, vitesseA);
-    MOTOR_SetSpeed(!roueQuiAvance, vitesseR);
+    int x = (sumA - sumR) / 2; // Distance parcourue jusqu'a present
+    vitesseA = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * sin((PI*x)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
+    vitesseR = -vitesseA;
+
+    MOTOR_SetSpeed(roueQuiAvance, vitesseA * correctionA);
+    MOTOR_SetSpeed(!roueQuiAvance, vitesseR * correctionR);
     delay(INTERVALLE_PRISE_MESURE);
 
     sumA += encodeurA = ENCODER_Read(roueQuiAvance);   //update du nb de pulse
     sumR += encodeurR = ENCODER_Read(!roueQuiAvance);
 
-    PPMvoulu = (encodeurA + -encodeurR) / 2;
+    PPMvoulu = (encodeurA - encodeurR) / 2;
+    PPMdiff = (sumA + sumR) / PPM_TAUX_AJUSTEMENT_DISTANCE;
 
-    //Ajuste la vitesse de chaque roue individuellement en fonction de la différence
-    if (encodeurA > 0 && encodeurR < 0) {
-      vitesseA = (PPMvoulu * vitesseA) / encodeurA;
-      vitesseR = (-PPMvoulu * vitesseR) / encodeurR;
+        // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
+    if (encodeurA > 0 && encodeurR < 0 && PPMvoulu > PPM_VOULU_MIN) {
+      correctionA = (float)PPMvoulu / (encodeurA + PPMdiff);
+      correctionR = (float)PPMvoulu / (-encodeurR - PPMdiff);
     }
+    // Serial.print("\nSum A: ");
+    // Serial.print(sumA);
+    // Serial.print("\nSum R: ");
+    // Serial.print(sumR);
+    // Serial.print("\nVitesse A: ");
+    // Serial.print(vitesseA);
+    // Serial.print("\nVitesse R: ");
+    // Serial.print(vitesseR);
+    // Serial.print("\nPPMVoulu: ");
+    // Serial.print(PPMvoulu);
+    // Serial.print("\nPPMdiff: ");
+    // Serial.print(PPMdiff);
+    // Serial.print("\nEncodeur A: ");
+    // Serial.print(encodeurA);
+    // Serial.print("\nEncodeur R: ");
+    // Serial.print(encodeurR);
+    // Serial.print("\nCorrection A: ");
+    // Serial.print(correctionA);
+    // Serial.print("\nCorrection R: ");
+    // Serial.print(correctionR);
+    // Serial.print("\nEx Correction A: ");
+    // Serial.print(PPMvoulu / (encodeurA));
+    // Serial.print("\nEx Correction R: ");
+    // Serial.print(PPMvoulu / (-encodeurR));
+    // Serial.print("\n--------------------");
   }
+
 
   arret();
   delay(500);
