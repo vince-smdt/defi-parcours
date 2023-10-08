@@ -127,20 +127,20 @@ void avanceDistance(float distance){
   float correctionG = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionD = 1;
 
+  reinitialiserEncodeurs();
+
   // Tant que le nombre de pulse necessaire pour faire la distance desire est plus petit que le compteur des encoders
   while(distG < PULSES_A_PARCOURIR || distD < PULSES_A_PARCOURIR)
   {
-    reinitialiserEncodeurs();
-
-    int x = (distG + distD) / 2; // Distance parcourue jusqu'a present
-    vitesseG = vitesseD = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * sin((PI*x)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
+    const int X = (distG + distD) / 2; // Distance parcourue jusqu'a present
+    vitesseG = vitesseD = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
 
     MOTOR_SetSpeed(LEFT, vitesseG * correctionG);
     MOTOR_SetSpeed(RIGHT, vitesseD * correctionD);
     delay(INTERVALLE_PRISE_MESURE);
 
-    distG += encodeurG = ENCODER_Read(LEFT);   // Update du nb de pulse
-    distD += encodeurD = ENCODER_Read(RIGHT);
+    distG += encodeurG = ENCODER_ReadReset(LEFT); // Update du nb de pulse
+    distD += encodeurD = ENCODER_ReadReset(RIGHT);
 
     PPMvoulu = (encodeurG + encodeurD) / 2;
     PPMdiff = (distG - distD) / PPM_TAUX_AJUSTEMENT_DISTANCE;
@@ -181,25 +181,25 @@ void tourne(int dir){
     default:    erreur(6); // On quitte le programme, direction invalide
   }
 
+  reinitialiserEncodeurs();
+
   while(distA < PULSES_TOURNER_90_DEG || distR > -PULSES_TOURNER_90_DEG)
   {
-    reinitialiserEncodeurs();
-
-    int x = (distA - distR) / 2; // Distance parcourue jusqu'a present
-    vitesseA = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * sin((PI*x)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
+    const int X = (distA - distR) / 2; // Distance parcourue jusqu'a present
+    vitesseA = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * sin((PI*X)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
     vitesseR = -vitesseA;
 
     MOTOR_SetSpeed(roueQuiAvance, vitesseA * correctionA);
     MOTOR_SetSpeed(!roueQuiAvance, vitesseR * correctionR);
     delay(INTERVALLE_PRISE_MESURE);
 
-    distA += encodeurA = ENCODER_Read(roueQuiAvance);   // Update du nb de pulse
-    distR += encodeurR = ENCODER_Read(!roueQuiAvance);
+    distA += encodeurA = ENCODER_ReadReset(roueQuiAvance); // Update du nb de pulse
+    distR += encodeurR = ENCODER_ReadReset(!roueQuiAvance);
 
     PPMvoulu = (encodeurA - encodeurR) / 2;
     PPMdiff = (distA + distR) * PPM_TAUX_AJUSTEMENT_DISTANCE;
 
-        // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
+    // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
     if (encodeurA > 0 && encodeurR < 0 && PPMvoulu > PPM_VOULU_MIN) {
       correctionA += (float)PPMvoulu / (encodeurA + PPMdiff) - 1;
       correctionR += (float)PPMvoulu / (-encodeurR - PPMdiff) - 1;
@@ -268,9 +268,9 @@ void beep(int count, int ms){
   }
 }
 
-// Quitte le programme et emet le signal d'erreur
+// Quitte le programme et emet un signal d'erreur
 void erreur(int beepCount) {
-  beep(beepCount, 100); // Erreur!
+  beep(beepCount, 100);
   exit(EXIT_FAILURE);
 }
 
@@ -305,7 +305,7 @@ bool verifierCase(int dir) {
     case EST:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
     case OUEST: caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
     case SUD:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
-    default:    return false; // Direction invalide
+    default:    erreur(9); // On quitte le programme, direction invalide
   }
 
   if (caseValide) {
