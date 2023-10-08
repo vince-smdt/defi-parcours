@@ -61,8 +61,8 @@ Direction g_dir;                    // Direction cardinale du robot
 
 void avanceDistance(float distance);
 void tourne(int dir);
-void changerDirection(Direction dir);
-void deplacerCellule(Direction dir);
+void changerDirection(int dir);
+void deplacerCellule(int dir);
 void reinitialiserEncodeurs();
 void arret();
 void beep(int count, int ms);
@@ -72,7 +72,7 @@ void succes();
 bool mur();
 bool sifflet();
 bool arrive();
-bool verifierCase(Direction dir);
+bool verifierCase(int dir);
 
 
 /****************************************/
