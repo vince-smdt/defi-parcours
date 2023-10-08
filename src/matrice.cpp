@@ -61,8 +61,8 @@ Direction g_dir;                    // Direction cardinale du robot
 
 void avanceDistance(float distance);
 void tourne(int dir);
-void changerDirection(int dir);
-void deplacerCellule(int dir);
+void changerDirection(Direction dir);
+void deplacerCellule(Direction dir);
 void reinitialiserEncodeurs();
 void arret();
 void beep(int count, int ms);
@@ -72,7 +72,7 @@ void succes();
 bool mur();
 bool sifflet();
 bool arrive();
-bool verifierCase(int dir);
+bool verifierCase(Direction dir);
 
 
 /****************************************/
@@ -176,8 +176,8 @@ void tourne(int dir){
   int roueQuiAvance = -1;
 
   switch (dir) {
-    case LEFT:  roueQuiAvance = RIGHT; break;
-    case RIGHT: roueQuiAvance = LEFT; break;
+    case LEFT:  roueQuiAvance = RIGHT;  break;
+    case RIGHT: roueQuiAvance = LEFT;   break;
     default:    erreur(6); // On quitte le programme, direction invalide
   }
 
@@ -193,7 +193,7 @@ void tourne(int dir){
     MOTOR_SetSpeed(!roueQuiAvance, vitesseR * correctionR);
     delay(INTERVALLE_PRISE_MESURE);
 
-    distA += encodeurA = ENCODER_Read(roueQuiAvance);   //update du nb de pulse
+    distA += encodeurA = ENCODER_Read(roueQuiAvance);   // Update du nb de pulse
     distR += encodeurR = ENCODER_Read(!roueQuiAvance);
 
     PPMvoulu = (encodeurA - encodeurR) / 2;
