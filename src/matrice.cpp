@@ -9,16 +9,15 @@ const int PULSES_PAR_TOUR = 3200;
 const float VITESSE_AVANCER_MIN = 0.05;
 const float VITESSE_AVANCER_MAX = 0.5;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
-const float TAILLE_CELLULE = 0.475; // En metre
+const float TAILLE_CELLULE = 0.49; // En metre
 
 // Pour faire tourner le robot
-const int PULSES_TOURNER_90_DEG = 1920;
-const float VITESSE_TOURNER_MIN = 0.05;
-const float VITESSE_TOURNER_MAX = 0.3;
+const int PULSES_TOURNER_90_DEG = 1945;
+const float VITESSE_TOURNER_MIN = 0.04;
+const float VITESSE_TOURNER_MAX = 0.2;
 
 // Pour les ajustement des vitesses des moteurs
 const int INTERVALLE_PRISE_MESURE = 100; // En ms
-const float PPM_TAUX_AJUSTEMENT_DISTANCE = 0.25; // Taux d'ajustement pour egaliser la distance parcourue totale des deux roues
 const float CORRECTION_MIN = 0.9;
 const float CORRECTION_MAX = 1.1;
 
@@ -74,6 +73,8 @@ bool sifflet();
 bool arrive();
 bool verifierCase(int dir);
 
+float calculCorrection(int encodeurG, int encodeurD, int distG, int distD);
+
 
 /****************************************/
 /**** SETUP & LOOP ****/
@@ -114,7 +115,6 @@ void loop() {
 void avanceDistance(float distance){
   // Converti la distance en metre au nb de pulse necessaire
   const int PULSES_A_PARCOURIR = PULSES_PAR_TOUR * (distance / CIRCONFERENCE_ROUE_M);
-  const int PPM_VOULU_MIN = 20;       // Distance min a parcourir par mesure pour correction
 
   float vitesseG = 0; // La vitesse de base des moteurs (sans correction)
   float vitesseD = 0;
@@ -122,8 +122,6 @@ void avanceDistance(float distance){
   int encodeurD = 0;
   int distG = 0; // Distance totale en pulses parcourue par la roue
   int distD = 0;
-  int PPMvoulu = 0; // Moyenne des 2 roues (Pulses par mesure)
-  int PPMdiff = 0; // Difference des distances totales parcourues par les deux roues
   float correctionG = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionD = 1;
 
@@ -142,13 +140,12 @@ void avanceDistance(float distance){
     distG += encodeurG = ENCODER_ReadReset(LEFT); // Update du nb de pulse
     distD += encodeurD = ENCODER_ReadReset(RIGHT);
 
-    PPMvoulu = (encodeurG + encodeurD) / 2;
-    PPMdiff = (distG - distD) / PPM_TAUX_AJUSTEMENT_DISTANCE;
+    // Calculer la correction a appliquer a la vitesse de base
+    if (encodeurG > 0 && encodeurD > 0) {
+      const float CORRECTION = calculCorrection(encodeurG, encodeurD, distG, distD);
 
-    // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
-    if (encodeurG > 0 && encodeurD > 0 && PPMvoulu > PPM_VOULU_MIN) {
-      correctionG += (float)PPMvoulu / (encodeurG + PPMdiff) - 1;
-      correctionD += (float)PPMvoulu / (encodeurD - PPMdiff) - 1;
+      correctionG += CORRECTION;
+      correctionD -= CORRECTION;
     }
 
     // S'assurer que l'element de correction ne depasse pas les limites
@@ -161,16 +158,12 @@ void avanceDistance(float distance){
 
 // Fait tourner le robot de 90deg a gauche (LEFT) ou droite (RIGHT)
 void tourne(int dir){
-  const int PPM_VOULU_MIN = 20; // Distance min a parcourir par mesure pour correction
-
   float vitesseA = 0; // La vitesse de base des moteurs (sans correction)
   float vitesseR = 0;
   int encodeurA = 0; // Lit le nombre de pulses des encodeurs
   int encodeurR = 0;
   int distA = 0; // Distance totale en pulses parcourue par la roue
   int distR = 0;
-  int PPMvoulu = 0; // Moyenne des 2 roues (Pulses par mesure)
-  int PPMdiff = 0; // Difference des distances totales parcourues par les deux roues
   float correctionA = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionR = 1;
   int roueQuiAvance = -1;
@@ -178,7 +171,7 @@ void tourne(int dir){
   switch (dir) {
     case LEFT:  roueQuiAvance = RIGHT;  break;
     case RIGHT: roueQuiAvance = LEFT;   break;
-    default:    erreur(6); // On quitte le programme, direction invalide
+    default:    erreur(6); break; // On quitte le programme, direction invalide
   }
 
   reinitialiserEncodeurs();
@@ -196,13 +189,12 @@ void tourne(int dir){
     distA += encodeurA = ENCODER_ReadReset(roueQuiAvance); // Update du nb de pulse
     distR += encodeurR = ENCODER_ReadReset(!roueQuiAvance);
 
-    PPMvoulu = (encodeurA - encodeurR) / 2;
-    PPMdiff = (distA + distR) * PPM_TAUX_AJUSTEMENT_DISTANCE;
+    // Calculer la correction a appliquer a la vitesse de base
+    if (encodeurA > 0 && encodeurR < 0) {
+      const float CORRECTION = calculCorrection(encodeurA, encodeurR, distA, distR);
 
-    // Ajuste la vitesse de chaque roue individuellement en fonction de la difference
-    if (encodeurA > 0 && encodeurR < 0 && PPMvoulu > PPM_VOULU_MIN) {
-      correctionA += (float)PPMvoulu / (encodeurA + PPMdiff) - 1;
-      correctionR += (float)PPMvoulu / (-encodeurR - PPMdiff) - 1;
+      correctionA += CORRECTION;
+      correctionR -= CORRECTION;
     }
 
     // S'assurer que l'element de correction ne depasse pas les limites
@@ -218,11 +210,11 @@ void changerDirection(int dir) {
   while (g_dir != dir) {
     tourne(RIGHT);
     switch (g_dir) {
-      case NORD:  g_dir = EST; break;
-      case EST:   g_dir = SUD; break;
-      case OUEST: g_dir = NORD; break;
-      case SUD:   g_dir = OUEST; break;
-      default:    erreur(7); // On quitte le programme, direction invalide
+      case NORD:  g_dir = EST;    break;
+      case EST:   g_dir = SUD;    break;
+      case OUEST: g_dir = NORD;   break;
+      case SUD:   g_dir = OUEST;  break;
+      default:    erreur(7);      break; // On quitte le programme, direction invalide
     }
   }
 }
@@ -240,7 +232,7 @@ void deplacerCellule(int dir) {
     case EST:   g_colonne++;  break;
     case OUEST: g_colonne--;  break;
     case SUD:   g_ligne++;    break;
-    default:    erreur(8); // On quitte le programme, direction invalide
+    default:    erreur(8);    break; // On quitte le programme, direction invalide
   }
   g_matrice[g_colonne][g_ligne] = 1; // Marque la nouvelle case comme exploree
 }
@@ -255,7 +247,7 @@ void reinitialiserEncodeurs() {
 void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
-  delay(100);
+  delay(200);
 }
 
 // Fait beeper le robot un certain nombre de fois
@@ -301,11 +293,11 @@ bool verifierCase(int dir) {
 
   // On verifie d'abord que la cellule existe et qu'elle est non exploree
   switch (dir) {
-    case NORD:  caseValide = g_ligne != 0             && g_matrice[g_colonne][g_ligne-1] == 0;
-    case EST:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0;
-    case OUEST: caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0;
-    case SUD:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0;
-    default:    erreur(9); // On quitte le programme, direction invalide
+    case NORD:  caseValide = g_ligne != 0             && g_matrice[g_colonne][g_ligne-1] == 0; break;
+    case EST:   caseValide = g_colonne != NB_COLS - 1 && g_matrice[g_colonne+1][g_ligne] == 0; break;
+    case OUEST: caseValide = g_colonne != 0           && g_matrice[g_colonne-1][g_ligne] == 0; break;
+    case SUD:   caseValide = g_ligne != NB_LIGNES - 1 && g_matrice[g_colonne][g_ligne+1] == 0; break;
+    default:    erreur(9); break; // On quitte le programme, direction invalide
   }
 
   if (caseValide) {
@@ -315,4 +307,25 @@ bool verifierCase(int dir) {
   }
 
   return caseValide;
+}
+
+// Montant net a ajouter a l'element multiplicatif correctif pour les encodeurs
+// La valeur de retour est additionnee au correctif G et soustrait au correctif D
+float calculCorrection(int encodeurG, int encodeurD, int distG, int distD) {
+  if (encodeurG == 0 || encodeurD == 0)
+    return 0;
+
+  // Le montant net est calcule avec les valeurs absolues des encodeurs, donc distance parcourue net
+  encodeurG = abs(encodeurG);
+  encodeurD = abs(encodeurD);
+  distG = abs(distG);
+  distD = abs(distD);
+
+  const int DIFF_DIST = (distG - distD) / 2;
+  const int DIFF_ENCO = encodeurG - encodeurD;
+  const int DIFF_TOT = DIFF_DIST + DIFF_ENCO;
+
+  const float RAPPORT = (-(DIFF_TOT / 2.0) + encodeurG) / encodeurG;
+
+  return RAPPORT - 1;
 }
