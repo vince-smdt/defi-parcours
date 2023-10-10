@@ -7,14 +7,14 @@
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
 const float VITESSE_AVANCER_MIN = 0.05;
-const float VITESSE_AVANCER_MAX = 0.5;
+const float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
 
 // Pour faire tourner le robot
-const int PULSES_TOURNER_90_DEG = 1945;
+const int PULSES_TOURNER_90_DEG = 1940;
 const float VITESSE_TOURNER_MIN = 0.05;
-const float VITESSE_TOURNER_MAX = 0.2;
+const float VITESSE_TOURNER_MAX = 0.15;
 
 // Pour les ajustement des vitesses des moteurs
 const int INTERVALLE_PRISE_MESURE = 20; // En ms
@@ -26,7 +26,7 @@ const int NB_COLS = 3;
 const int NB_LIGNES = 6;
 
 // Pour le micro
-const int MICRO_VOLUME_START = 400;
+const int MICRO_VOLUME_START = 500;
 
 // Pins du robot
 const int PIN_PROX_DROITE = 47; // Lumiere verte
@@ -105,7 +105,9 @@ void loop() {
       if (dir == AUCUNE_DIRECTION)
         erreur(5); // Erreur, aucune case valide, on quitte le programme
       if (verifierCase(dir)) {
-        deplacerCellule(dir); // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
+        // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
+        // On avance tant qu'on peut (do while)
+        do deplacerCellule(dir); while (verifierCase(dir)); 
         break; // On recommence la verification a partir de la direction Nord (0)
       }
     }
@@ -138,7 +140,8 @@ void avanceDistance(float distance){
   while(distG < PULSES_A_PARCOURIR || distD < PULSES_A_PARCOURIR)
   {
     const int X = (distG + distD) / 2; // Distance parcourue jusqu'a present
-    vitesseG = vitesseD = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
+    const float VITESSE_BASE = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * 2 * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
+    vitesseG = vitesseD = min(VITESSE_BASE, VITESSE_AVANCER_MAX);
 
     MOTOR_SetSpeed(LEFT, vitesseG * correctionG);
     MOTOR_SetSpeed(RIGHT, vitesseD * correctionD);
@@ -186,7 +189,8 @@ void tourne(int dir){
   while(distA < PULSES_TOURNER_90_DEG || distR > -PULSES_TOURNER_90_DEG)
   {
     const int X = (distA - distR) / 2; // Distance parcourue jusqu'a present
-    vitesseA = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * sin((PI*X)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
+    const float VITESSE_BASE = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * 2 * sin((PI*X)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
+    vitesseA = min(VITESSE_BASE, VITESSE_TOURNER_MAX);
     vitesseR = -vitesseA;
 
     MOTOR_SetSpeed(roueQuiAvance, vitesseA * correctionA);
@@ -249,7 +253,6 @@ void reinitialiserEncodeurs() {
 void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
-  delay(200);
 }
 
 // Fait beeper le robot un certain nombre de fois
