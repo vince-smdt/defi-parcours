@@ -13,22 +13,25 @@ const float TAILLE_CELLULE = 0.49; // En metre
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1945;
-const float VITESSE_TOURNER_MIN = 0.04;
+const float VITESSE_TOURNER_MIN = 0.05;
 const float VITESSE_TOURNER_MAX = 0.2;
 
 // Pour les ajustement des vitesses des moteurs
-const int INTERVALLE_PRISE_MESURE = 100; // En ms
-const float CORRECTION_MIN = 0.9;
-const float CORRECTION_MAX = 1.1;
+const int INTERVALLE_PRISE_MESURE = 20; // En ms
+const float CORRECTION_MIN = 0.8;
+const float CORRECTION_MAX = 1.2;
 
 // Dimensions du parcours
 const int NB_COLS = 3;
 const int NB_LIGNES = 6;
 
+// Pour le micro
+const int MICRO_VOLUME_START = 400;
+
 // Pins du robot
 const int PIN_PROX_DROITE = 47; // Lumiere verte
 const int PIN_PROX_GAUCHE = 49; // Lumiere rouge
-const int PIN_MICRO = 0;
+const int PIN_MICRO = PIN_A0;
 
 
 /****************************************/
@@ -51,7 +54,7 @@ enum Direction {
 int g_ligne;                        // Position y du robot
 int g_colonne;                      // Position x du robot
 int g_matrice[NB_COLS][NB_LIGNES];  // Matrice des cellules du parcours (0 = Case non exploree, 1 = Case exploree)
-Direction g_dir;                    // Direction cardinale du robot
+int g_dir;                          // Direction cardinale du robot
 
 
 /****************************************/
@@ -73,6 +76,9 @@ bool sifflet();
 bool arrive();
 bool verifierCase(int dir);
 
+int prochaineDir(int leftright, int dir);
+int directionOptimaleTourner(int dir);
+
 float calculCorrection(int encodeurG, int encodeurD, int distG, int distD);
 
 
@@ -82,6 +88,7 @@ float calculCorrection(int encodeurG, int encodeurD, int distG, int distD);
 
 void setup() {
   BoardInit();
+  pinMode(PIN_A0, INPUT);
 }
 
 void loop() {
@@ -90,7 +97,7 @@ void loop() {
   g_dir = NORD;
   g_matrice[NB_COLS][NB_LIGNES] = {0};
 
-  // while (!sifflet()); // On attend le signal du sifflet
+  while (!sifflet()); // On attend le signal du sifflet
 
   while (!arrive())
     // On verifie chaque direction pour voir si on peut s'y deplacer
@@ -207,15 +214,10 @@ void tourne(int dir){
 
 // Fait tourner le robot jusqu'a ce qu'il fait face a la bonne direction
 void changerDirection(int dir) {
+  int dirOptimale = directionOptimaleTourner(dir);
   while (g_dir != dir) {
-    tourne(RIGHT);
-    switch (g_dir) {
-      case NORD:  g_dir = EST;    break;
-      case EST:   g_dir = SUD;    break;
-      case OUEST: g_dir = NORD;   break;
-      case SUD:   g_dir = OUEST;  break;
-      default:    erreur(7);      break; // On quitte le programme, direction invalide
-    }
+    tourne(dirOptimale);
+    g_dir = prochaineDir(dirOptimale, g_dir);
   }
 }
 
@@ -279,7 +281,7 @@ bool mur() {
 
 // Detecte le signal du sifflet
 bool sifflet() {
-  return analogRead(PIN_MICRO) > 500;
+  return analogRead(PIN_MICRO) > MICRO_VOLUME_START;
 }
 
 // Detecte si le robot est arrivee a la derniere rangee
@@ -309,6 +311,52 @@ bool verifierCase(int dir) {
   return caseValide;
 }
 
+// Determine vers quelle direction le robot fera face dependemment de la direction LEFT ou RIGHT
+int prochaineDir(int leftright, int dir) {
+  if (leftright == RIGHT) {
+    switch (dir) {
+      case NORD:  return EST;   break;
+      case EST:   return SUD;   break;
+      case SUD:   return OUEST; break;
+      case OUEST: return NORD;  break;
+    }
+  }
+  else if (leftright == LEFT) {
+    switch (dir) {
+      case NORD:  return OUEST; break;
+      case OUEST: return SUD;   break;
+      case SUD:   return EST;   break;
+      case EST:   return NORD;  break;
+    }
+  }
+  erreur(4);
+  return AUCUNE_DIRECTION;
+}
+
+// Determine s'il est plus optimale pour le robot de tourner a gauche ou a droite pour faire face a la dir voulue
+int directionOptimaleTourner(int dir) {
+  int compteGauche = 0;
+  int compteDroite = 0;
+  int dirComparaison = 0;
+
+  // On verifie combien de fois il faut tourner a droite
+  dirComparaison = g_dir;
+  while (dirComparaison != dir) {
+    dirComparaison = prochaineDir(RIGHT, dirComparaison);
+    compteDroite++;
+  }
+
+  // On verifie combien de fois il faut tourner a gauche
+  dirComparaison = g_dir;
+  while (dirComparaison != dir) {
+    dirComparaison = prochaineDir(LEFT, dirComparaison);
+    compteGauche++;
+  }
+
+  // On retourne la direction optimale
+  return compteDroite <= compteGauche ? RIGHT : LEFT;
+}
+
 // Montant net a ajouter a l'element multiplicatif correctif pour les encodeurs
 // La valeur de retour est additionnee au correctif G et soustrait au correctif D
 float calculCorrection(int encodeurG, int encodeurD, int distG, int distD) {
@@ -321,11 +369,11 @@ float calculCorrection(int encodeurG, int encodeurD, int distG, int distD) {
   distG = abs(distG);
   distD = abs(distD);
 
-  const int DIFF_DIST = (distG - distD) / 2;
+  const int AJU_DIST = distG > distD ? 1 : -1;
   const int DIFF_ENCO = encodeurG - encodeurD;
-  const int DIFF_TOT = DIFF_DIST + DIFF_ENCO;
+  const int DIFF_TOT = AJU_DIST + DIFF_ENCO;
 
   const float RAPPORT = (-(DIFF_TOT / 2.0) + encodeurG) / encodeurG;
 
-  return RAPPORT - 1;
+  return (RAPPORT - 1) / 2;
 }
