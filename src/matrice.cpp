@@ -97,6 +97,8 @@ void loop() {
   g_dir = NORD;
   g_matrice[NB_COLS][NB_LIGNES] = {0};
 
+  g_matrice[g_colonne][g_ligne] = 1; // On marque la case de depart comme exploree
+
   while (!sifflet()); // On attend le signal du sifflet
 
   while (!arrive())
@@ -108,7 +110,7 @@ void loop() {
         // Si la case est non exploree et il n'y a pas de mur, on s'y deplace
         // On avance tant qu'on peut (do while)
         do deplacerCellule(dir); while (verifierCase(dir)); 
-        break; // On recommence la verification a partir de la direction Nord (0)
+        break; // On recommence la verification a partir de la direction Nord
       }
     }
 
