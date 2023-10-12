@@ -169,27 +169,12 @@ void avanceDistance(float distance){
 
   arret();
 
-  Serial.print("Dist G&D BEFORE (avancer): ");
-  Serial.print(distG);
-  Serial.print(", ");
-  Serial.print(distD);
-
   distG += ENCODER_ReadReset(LEFT);
   distD += ENCODER_ReadReset(RIGHT);
 
   // Accumulation de l'imprecision de mouvement des deux roues
   g_diffAvancerG = distG - PULSES_A_PARCOURIR;
   g_diffAvancerD = distD - PULSES_A_PARCOURIR;
-
-  Serial.print("\nDist G&D (avancer): ");
-  Serial.print(distG);
-  Serial.print(", ");
-  Serial.print(distD);
-  Serial.print("\ndiffAvancer G&D: ");
-  Serial.print(g_diffAvancerG);
-  Serial.print(", ");
-  Serial.print(g_diffAvancerD);
-  Serial.print("\n\n");
 }
 
 // Fait tourner le robot de 90deg a gauche (LEFT) ou droite (RIGHT)
@@ -240,11 +225,6 @@ void tourne(int dir) {
 
   arret();
 
-  Serial.print("Dist A&R BEFORE (tourne): ");
-  Serial.print(distA);
-  Serial.print(", ");
-  Serial.print(distR);
-
   distA += ENCODER_ReadReset(roueQuiAvance);
   distR += ENCODER_ReadReset(!roueQuiAvance);
 
@@ -255,29 +235,6 @@ void tourne(int dir) {
   g_diffTournerD = roueQuiAvance == LEFT
                    ? distR + PULSES_TOURNER_90_DEG
                    : distA - PULSES_TOURNER_90_DEG;
-
-  if (roueQuiAvance == LEFT) {
-    Serial.print("\nDist A&R (tourne à droite): ");
-    Serial.print(distA);
-    Serial.print(", ");
-    Serial.print(distR);
-    Serial.print("\ndiffTourner G&D: ");
-    Serial.print(g_diffTournerG);
-    Serial.print(", ");
-    Serial.print(g_diffTournerD);
-    Serial.print("\n\n");
-  }
-  else if (roueQuiAvance == RIGHT) {
-    Serial.print("Dist A&R (tourne à gauche): ");
-    Serial.print(distA);
-    Serial.print(", ");
-    Serial.print(distR);
-    Serial.print("\ndiffTourner D&G: ");
-    Serial.print(g_diffTournerD);
-    Serial.print(", ");
-    Serial.print(g_diffTournerG);
-    Serial.print("\n\n");
-  }
 }
 
 // Fait tourner le robot jusqu'a ce qu'il fait face a la bonne direction
