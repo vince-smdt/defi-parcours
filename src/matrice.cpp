@@ -7,15 +7,15 @@
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
 float VITESSE_AVANCER_MIN = 0.06; // Pas constante
-const float VITESSE_AVANCER_MAX = 0.6;
+float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
-const float TAUX_ACCELERATION = 1.8;
+float TAUX_ACCELERATION = 1.8;
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1940;
 const float VITESSE_TOURNER_MIN = 0.06;
-const float VITESSE_TOURNER_MAX = 0.15;
+const float VITESSE_TOURNER_MAX = 0.18;
 
 // Pour les ajustement des vitesses des moteurs
 const int INTERVALLE_PRISE_MESURE = 20; // En ms
@@ -109,8 +109,6 @@ void loop() {
 
   while (!sifflet()); // On attend le signal du sifflet
 
-  avanceDistance(TAILLE_CELLULE * 11);
-
   while (!arrive())
     // On verifie chaque direction pour voir si on peut s'y deplacer
     for (int dir = NORD; dir <= AUCUNE_DIRECTION; dir++) {
@@ -124,18 +122,20 @@ void loop() {
       }
     }
 
-  succes();
-
   /**** BONUS ****/
   deplacerCellule(NORD);
 
   if (g_colonne == 0) deplacerCellule(EST);
   else if (g_colonne == 2) deplacerCellule(OUEST);
 
-  VITESSE_AVANCER_MIN = 0.2;
+  VITESSE_AVANCER_MIN = 0.3;
+  VITESSE_AVANCER_MAX = 0.7;
+  TAUX_ACCELERATION = 6;
 
   changerDirection(SUD);
   avanceDistance(TAILLE_CELLULE * 11);
+
+  succes();
 }
 
 
@@ -182,11 +182,6 @@ void avanceDistance(float distance){
     // S'assurer que l'element de correction ne depasse pas les limites
     correctionG = minmax(CORRECTION_MIN, correctionG, CORRECTION_MAX);
     correctionD = minmax(CORRECTION_MIN, correctionD, CORRECTION_MAX);
-
-    Serial.print(distG);
-    Serial.print(", ");
-    Serial.print(distD);
-    Serial.print("\n");
   }
 
   arret();
@@ -286,7 +281,7 @@ void deplacerCellule(int dir) {
 void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
-  delay(100);
+  delay(50);
 }
 
 // Fait beeper le robot un certain nombre de fois
