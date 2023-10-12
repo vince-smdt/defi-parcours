@@ -10,12 +10,12 @@ float VITESSE_AVANCER_MIN = 0.06; // Pas constante
 float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
-float TAUX_ACCELERATION = 1.8;
+float TAUX_ACCELERATION = 2.0;
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1940;
 const float VITESSE_TOURNER_MIN = 0.06;
-const float VITESSE_TOURNER_MAX = 0.18;
+const float VITESSE_TOURNER_MAX = 0.22;
 
 // Pour les ajustement des vitesses des moteurs
 const int INTERVALLE_PRISE_MESURE = 20; // En ms
@@ -129,7 +129,7 @@ void loop() {
   else if (g_colonne == 2) deplacerCellule(OUEST);
 
   VITESSE_AVANCER_MIN = 0.3;
-  VITESSE_AVANCER_MAX = 0.7;
+  VITESSE_AVANCER_MAX = 0.8;
   TAUX_ACCELERATION = 6;
 
   changerDirection(SUD);
