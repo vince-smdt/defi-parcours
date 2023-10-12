@@ -6,7 +6,7 @@
 
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
-const float VITESSE_AVANCER_MIN = 0.06;
+float VITESSE_AVANCER_MIN = 0.06; // Pas constante
 const float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
@@ -30,7 +30,7 @@ const int NB_LIGNES = 10;
 const int MICRO_VOLUME_START = 500;
 
 // Pins du robot
-const int PIN_PROX_DROITE = 33; // Lumiere verte
+const int PIN_PROX_DROITE = 47; // Lumiere verte
 const int PIN_PROX_GAUCHE = 49; // Lumiere rouge
 const int PIN_MICRO = PIN_A0;
 
@@ -128,6 +128,8 @@ void loop() {
   if (g_colonne == 0) deplacerCellule(EST);
   else if (g_colonne == 2) deplacerCellule(OUEST);
 
+  VITESSE_AVANCER_MIN = 0.2;
+
   changerDirection(SUD);
   avanceDistance(TAILLE_CELLULE * 9);
 }
@@ -140,21 +142,21 @@ void loop() {
 // Avance d'une certaine distance en metres
 void avanceDistance(float distance){
   // Converti la distance en metre au nb de pulse necessaire
-  const int PULSES_A_PARCOURIR = PULSES_PAR_TOUR * (distance / CIRCONFERENCE_ROUE_M);
+  const float PULSES_A_PARCOURIR = PULSES_PAR_TOUR * (distance / CIRCONFERENCE_ROUE_M);
 
   float vitesseG = 0; // La vitesse de base des moteurs (sans correction)
   float vitesseD = 0;
-  int encodeurG = 0; // Lit le nombre de pulses des encodeurs
-  int encodeurD = 0;
-  int distG = g_diffAvancerG; // Distance totale en pulses parcourue par la roue
-  int distD = g_diffAvancerD; // La difference de distance totale parcourue leur est assignee pour que ca s'equilibre automatiquement
+  float encodeurG = 0; // Lit le nombre de pulses des encodeurs
+  float encodeurD = 0;
+  float distG = g_diffAvancerG; // Distance totale en pulses parcourue par la roue
+  float distD = g_diffAvancerD; // La difference de distance totale parcourue leur est assignee pour que ca s'equilibre automatiquement
   float correctionG = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionD = 1;
 
   // Tant que le nombre de pulse necessaire pour faire la distance desire est plus petit que le compteur des encoders
   while(distG < PULSES_A_PARCOURIR || distD < PULSES_A_PARCOURIR)
   {
-    const int X = (distG + distD) / 2; // Distance parcourue jusqu'a present
+    const float X = (distG + distD) / 2; // Distance parcourue jusqu'a present
     const float VITESSE_BASE = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * TAUX_ACCELERATION * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
     vitesseG = vitesseD = min(VITESSE_BASE, VITESSE_AVANCER_MAX);
 
