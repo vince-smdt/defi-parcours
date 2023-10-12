@@ -83,7 +83,7 @@ bool verifierCase(int dir);
 int prochaineDir(int leftright, int dir);
 int directionOptimaleTourner(int dir);
 
-float calculCorrection(int encodeurG, int encodeurD, int distG, int distD);
+float calculCorrection(float encodeurG, float encodeurD, float distG, float distD);
 
 
 /****************************************/
@@ -109,6 +109,8 @@ void loop() {
 
   while (!sifflet()); // On attend le signal du sifflet
 
+  avanceDistance(TAILLE_CELLULE * 11);
+
   while (!arrive())
     // On verifie chaque direction pour voir si on peut s'y deplacer
     for (int dir = NORD; dir <= AUCUNE_DIRECTION; dir++) {
@@ -125,13 +127,15 @@ void loop() {
   succes();
 
   /**** BONUS ****/
+  deplacerCellule(NORD);
+
   if (g_colonne == 0) deplacerCellule(EST);
   else if (g_colonne == 2) deplacerCellule(OUEST);
 
   VITESSE_AVANCER_MIN = 0.2;
 
   changerDirection(SUD);
-  avanceDistance(TAILLE_CELLULE * 9);
+  avanceDistance(TAILLE_CELLULE * 11);
 }
 
 
@@ -178,6 +182,11 @@ void avanceDistance(float distance){
     // S'assurer que l'element de correction ne depasse pas les limites
     correctionG = minmax(CORRECTION_MIN, correctionG, CORRECTION_MAX);
     correctionD = minmax(CORRECTION_MIN, correctionD, CORRECTION_MAX);
+
+    Serial.print(distG);
+    Serial.print(", ");
+    Serial.print(distD);
+    Serial.print("\n");
   }
 
   arret();
@@ -386,7 +395,7 @@ int directionOptimaleTourner(int dir) {
 
 // Montant net a ajouter a l'element multiplicatif correctif pour les encodeurs
 // La valeur de retour est additionnee au correctif G et soustrait au correctif D
-float calculCorrection(int encodeurG, int encodeurD, int distG, int distD) {
+float calculCorrection(float encodeurG, float encodeurD, float distG, float distD) {
   if (encodeurG == 0 || encodeurD == 0)
     return 0;
 
@@ -396,9 +405,9 @@ float calculCorrection(int encodeurG, int encodeurD, int distG, int distD) {
   distG = abs(distG);
   distD = abs(distD);
 
-  const int AJU_DIST = distG > distD ? 1 : -1;
-  const int DIFF_ENCO = encodeurG - encodeurD;
-  const int DIFF_TOT = AJU_DIST + DIFF_ENCO;
+  const float AJU_DIST = distG > distD ? 1 : -1;
+  const float DIFF_ENCO = encodeurG - encodeurD;
+  const float DIFF_TOT = AJU_DIST + DIFF_ENCO;
 
   const float RAPPORT = (-(DIFF_TOT / 2.0) + encodeurG) / encodeurG;
 
