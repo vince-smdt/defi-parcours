@@ -10,7 +10,7 @@ const float VITESSE_AVANCER_MIN = 0.06;
 const float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
-const float TAUX_ACCELERATION = 1.5;
+const float TAUX_ACCELERATION = 1.8;
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1940;
@@ -30,7 +30,7 @@ const int NB_LIGNES = 6;
 const int MICRO_VOLUME_START = 500;
 
 // Pins du robot
-const int PIN_PROX_DROITE = 47; // Lumiere verte
+const int PIN_PROX_DROITE = 33; // Lumiere verte
 const int PIN_PROX_GAUCHE = 49; // Lumiere rouge
 const int PIN_MICRO = PIN_A0;
 
@@ -57,6 +57,10 @@ int g_colonne;                      // Position x du robot
 int g_matrice[NB_COLS][NB_LIGNES];  // Matrice des cellules du parcours (0 = Case non exploree, 1 = Case exploree)
 int g_dir;                          // Direction cardinale du robot
 
+int g_diffAvancerG = 0;             // Accumulation des imprecisions de mouvement du robot
+int g_diffAvancerD = 0;             // La difference est soustraite a la distance a parcourir lors du prochain mouvement
+int g_diffTournerG = 0;
+int g_diffTournerD = 0;
 
 /****************************************/
 /**** FONCTIONS (DECLARATIONS) ****/
@@ -66,7 +70,6 @@ void avanceDistance(float distance);
 void tourne(int dir);
 void changerDirection(int dir);
 void deplacerCellule(int dir);
-void reinitialiserEncodeurs();
 void arret();
 void beep(int count, int ms);
 void erreur(int beepCount);
@@ -132,12 +135,10 @@ void avanceDistance(float distance){
   float vitesseD = 0;
   int encodeurG = 0; // Lit le nombre de pulses des encodeurs
   int encodeurD = 0;
-  int distG = 0; // Distance totale en pulses parcourue par la roue
-  int distD = 0;
+  int distG = g_diffAvancerG; // Distance totale en pulses parcourue par la roue
+  int distD = g_diffAvancerD; // La difference de distance totale parcourue leur est assignee pour que ca s'equilibre automatiquement
   float correctionG = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionD = 1;
-
-  reinitialiserEncodeurs();
 
   // Tant que le nombre de pulse necessaire pour faire la distance desire est plus petit que le compteur des encoders
   while(distG < PULSES_A_PARCOURIR || distD < PULSES_A_PARCOURIR)
@@ -167,27 +168,48 @@ void avanceDistance(float distance){
   }
 
   arret();
+
+  Serial.print("Dist G&D BEFORE (avancer): ");
+  Serial.print(distG);
+  Serial.print(", ");
+  Serial.print(distD);
+
+  distG += ENCODER_ReadReset(LEFT);
+  distD += ENCODER_ReadReset(RIGHT);
+
+  // Accumulation de l'imprecision de mouvement des deux roues
+  g_diffAvancerG = distG - PULSES_A_PARCOURIR;
+  g_diffAvancerD = distD - PULSES_A_PARCOURIR;
+
+  Serial.print("\nDist G&D (avancer): ");
+  Serial.print(distG);
+  Serial.print(", ");
+  Serial.print(distD);
+  Serial.print("\ndiffAvancer G&D: ");
+  Serial.print(g_diffAvancerG);
+  Serial.print(", ");
+  Serial.print(g_diffAvancerD);
+  Serial.print("\n\n");
 }
 
 // Fait tourner le robot de 90deg a gauche (LEFT) ou droite (RIGHT)
-void tourne(int dir){
+void tourne(int dir) {
   float vitesseA = 0; // La vitesse de base des moteurs (sans correction)
   float vitesseR = 0;
   int encodeurA = 0; // Lit le nombre de pulses des encodeurs
   int encodeurR = 0;
-  int distA = 0; // Distance totale en pulses parcourue par la roue
-  int distR = 0;
+  int distA = dir == LEFT ? g_diffAvancerD : g_diffAvancerG; // Distance totale en pulses parcourue par la roue
+  int distR = dir == LEFT ? g_diffAvancerG : g_diffAvancerD; // Ont leur assigne la diff de dist parcourue totale pour que sa s'equilibre
   float correctionA = 1; // Multiplicateur correctif de la vitesse du robot pour que les deux roues roulent a la meme vitesse
   float correctionR = 1;
   int roueQuiAvance = -1;
 
+  // On determine quelle roue avance
   switch (dir) {
-    case LEFT:  roueQuiAvance = RIGHT;  break;
-    case RIGHT: roueQuiAvance = LEFT;   break;
-    default:    erreur(6); break; // On quitte le programme, direction invalide
+    case LEFT: roueQuiAvance = RIGHT; break;
+    case RIGHT: roueQuiAvance = LEFT; break;
+    default: erreur(6); break; // On quitte le programme, direction invalide
   }
-
-  reinitialiserEncodeurs();
 
   while(distA < PULSES_TOURNER_90_DEG || distR > -PULSES_TOURNER_90_DEG)
   {
@@ -217,6 +239,45 @@ void tourne(int dir){
   }
 
   arret();
+
+  Serial.print("Dist A&R BEFORE (tourne): ");
+  Serial.print(distA);
+  Serial.print(", ");
+  Serial.print(distR);
+
+  distA += ENCODER_ReadReset(roueQuiAvance);
+  distR += ENCODER_ReadReset(!roueQuiAvance);
+
+  // Accumulation de l'imprecision de mouvement des deux roues
+  g_diffTournerG = roueQuiAvance == LEFT
+                   ? distA - PULSES_TOURNER_90_DEG
+                   : distR + PULSES_TOURNER_90_DEG;
+  g_diffTournerD = roueQuiAvance == LEFT
+                   ? distR + PULSES_TOURNER_90_DEG
+                   : distA - PULSES_TOURNER_90_DEG;
+
+  if (roueQuiAvance == LEFT) {
+    Serial.print("\nDist A&R (tourne à droite): ");
+    Serial.print(distA);
+    Serial.print(", ");
+    Serial.print(distR);
+    Serial.print("\ndiffTourner G&D: ");
+    Serial.print(g_diffTournerG);
+    Serial.print(", ");
+    Serial.print(g_diffTournerD);
+    Serial.print("\n\n");
+  }
+  else if (roueQuiAvance == RIGHT) {
+    Serial.print("Dist A&R (tourne à gauche): ");
+    Serial.print(distA);
+    Serial.print(", ");
+    Serial.print(distR);
+    Serial.print("\ndiffTourner D&G: ");
+    Serial.print(g_diffTournerD);
+    Serial.print(", ");
+    Serial.print(g_diffTournerG);
+    Serial.print("\n\n");
+  }
 }
 
 // Fait tourner le robot jusqu'a ce qu'il fait face a la bonne direction
@@ -246,16 +307,11 @@ void deplacerCellule(int dir) {
   g_matrice[g_colonne][g_ligne] = 1; // Marque la nouvelle case comme exploree
 }
 
-// Reinitialise les valeurs des encodeurs des moteurs
-void reinitialiserEncodeurs() {
-  ENCODER_ReadReset(LEFT);
-  ENCODER_ReadReset(RIGHT);
-}
-
 // Fait arreter le robot
 void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
+  delay(100);
 }
 
 // Fait beeper le robot un certain nombre de fois
