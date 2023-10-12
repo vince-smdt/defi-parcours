@@ -24,7 +24,7 @@ const float CORRECTION_MAX = 1.2;
 
 // Dimensions du parcours
 const int NB_COLS = 3;
-const int NB_LIGNES = 6;
+const int NB_LIGNES = 10;
 
 // Pour le micro
 const int MICRO_VOLUME_START = 500;
@@ -102,6 +102,10 @@ void loop() {
   g_matrice[NB_COLS][NB_LIGNES] = {0};
 
   g_matrice[g_colonne][g_ligne] = 1; // On marque la case de depart comme exploree
+  g_matrice[1][8] = 1;  // Murs permanents hardcodes
+  g_matrice[1][6] = 1;
+  g_matrice[1][2] = 1;
+  g_matrice[1][0] = 1;
 
   while (!sifflet()); // On attend le signal du sifflet
 
@@ -119,6 +123,13 @@ void loop() {
     }
 
   succes();
+
+  /**** BONUS ****/
+  if (g_colonne == 0) deplacerCellule(EST);
+  else if (g_colonne == 2) deplacerCellule(OUEST);
+
+  changerDirection(SUD);
+  avanceDistance(TAILLE_CELLULE * 9);
 }
 
 
@@ -248,12 +259,8 @@ void changerDirection(int dir) {
 
 // Deplace le robot vers la cellule devant celui-ci
 void deplacerCellule(int dir) {
-  const float DISTANCE_A_PARCOURIR = (dir == NORD || dir == SUD) && (g_ligne != 1 || dir != NORD)
-                                   ? TAILLE_CELLULE * 2
-                                   : TAILLE_CELLULE;
-
   changerDirection(dir);
-  avanceDistance(DISTANCE_A_PARCOURIR);
+  avanceDistance(TAILLE_CELLULE);
   switch (g_dir) {
     case NORD:  g_ligne--;    break;
     case EST:   g_colonne++;  break;
@@ -290,7 +297,6 @@ void erreur(int beepCount) {
 // Quitte le programme et emet le signal de reussite du parcours
 void succes() {
   beep(1, 1000);
-  exit(EXIT_SUCCESS);
 }
 
 // Detecte s'il y a un mur devant le robot
