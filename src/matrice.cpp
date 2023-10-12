@@ -6,14 +6,15 @@
 
 // Pour faire avancer le robot
 const int PULSES_PAR_TOUR = 3200;
-const float VITESSE_AVANCER_MIN = 0.05;
+const float VITESSE_AVANCER_MIN = 0.06;
 const float VITESSE_AVANCER_MAX = 0.6;
 const float CIRCONFERENCE_ROUE_M = 0.239389;
 const float TAILLE_CELLULE = 0.49; // En metre
+const float TAUX_ACCELERATION = 1.5;
 
 // Pour faire tourner le robot
 const int PULSES_TOURNER_90_DEG = 1940;
-const float VITESSE_TOURNER_MIN = 0.05;
+const float VITESSE_TOURNER_MIN = 0.06;
 const float VITESSE_TOURNER_MAX = 0.15;
 
 // Pour les ajustement des vitesses des moteurs
@@ -142,7 +143,7 @@ void avanceDistance(float distance){
   while(distG < PULSES_A_PARCOURIR || distD < PULSES_A_PARCOURIR)
   {
     const int X = (distG + distD) / 2; // Distance parcourue jusqu'a present
-    const float VITESSE_BASE = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * 2 * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
+    const float VITESSE_BASE = (VITESSE_AVANCER_MAX - VITESSE_AVANCER_MIN) * TAUX_ACCELERATION * sin((PI*X)/PULSES_A_PARCOURIR) + VITESSE_AVANCER_MIN;
     vitesseG = vitesseD = min(VITESSE_BASE, VITESSE_AVANCER_MAX);
 
     MOTOR_SetSpeed(LEFT, vitesseG * correctionG);
@@ -191,7 +192,7 @@ void tourne(int dir){
   while(distA < PULSES_TOURNER_90_DEG || distR > -PULSES_TOURNER_90_DEG)
   {
     const int X = (distA - distR) / 2; // Distance parcourue jusqu'a present
-    const float VITESSE_BASE = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * 2 * sin((PI*X)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
+    const float VITESSE_BASE = (VITESSE_TOURNER_MAX - VITESSE_TOURNER_MIN) * TAUX_ACCELERATION * sin((PI*X)/PULSES_TOURNER_90_DEG) + VITESSE_TOURNER_MIN;
     vitesseA = min(VITESSE_BASE, VITESSE_TOURNER_MAX);
     vitesseR = -vitesseA;
 
